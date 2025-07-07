@@ -22,7 +22,7 @@ class RerankerModel:
             documents (list[str]): A list of documents to rerank.
 
         Returns:
-            list[float]: A list of relevance scores for each document.
+            list[float]: A list of relevance scores for each document, scaled between 0 and 1 using a sigmoid function.
         """
         if not documents:
             return []
@@ -31,10 +31,13 @@ class RerankerModel:
         pairs = [[query, doc] for doc in documents]
 
         # Compute scores
-        # The compute_score method returns raw scores, which can be mapped to [0,1]
-        # using a sigmoid function if needed, but often raw scores are sufficient for ranking.
-        scores = self.reranker.compute_score(pairs)
-        return scores # Convert numpy array to list for JSON serialization
+        # The compute_score method returns raw scores.
+        raw_scores = self.reranker.compute_score(pairs)
+
+        # Apply sigmoid function to scale scores to [0, 1]
+        # Convert numpy array to torch tensor, apply sigmoid, then convert back to list
+        scores = torch.sigmoid(torch.tensor(raw_scores)).tolist() #
+        return scores
 
 # Global model instance
 reranker_instance: RerankerModel = None
