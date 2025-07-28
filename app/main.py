@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import FastAPI, HTTPException, Depends, Query
 from pydantic import BaseModel
 from .model import get_reranker_model, RerankerModel
 import logging
@@ -17,10 +17,15 @@ app = FastAPI(
 class RerankRequest(BaseModel):
     query: str
     documents: list[str]
+    top_n: int
 
 # Pydantic model for response body
+class RerankResultItem(BaseModel):
+    index: int
+    relevance_score: float
+
 class RerankResponse(BaseModel):
-    scores: list[float]
+    results: list[RerankResultItem]
 
 @app.on_event("startup")
 async def startup_event():
@@ -34,14 +39,21 @@ async def startup_event():
 @app.post("/rerank", response_model=RerankResponse)
 async def rerank_documents(
     request: RerankRequest,
-    reranker: RerankerModel = Depends(get_reranker_model)
+    reranker: RerankerModel = Depends(get_reranker_model),
 ):
     """
     Reranks a list of documents based on a given query.
     """
     try:
         scores = reranker.rerank(request.query, request.documents)
-        return RerankResponse(scores=scores)
+        # Build results as list of {index, relevance_score}
+        results = [RerankResultItem(index=i, relevance_score=score) for i, score in enumerate(scores)]
+        # Sort by relevance_score descending
+        results.sort(key=lambda x: x.relevance_score, reverse=True)
+        if request.top_n is not None:
+            results = results[:request.top_n]
+        logger.info(f"Scores: {scores}")            
+        return RerankResponse(results=results)
     except Exception as e:
         logger.error(f"Error during reranking: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Internal server error: {e}")
