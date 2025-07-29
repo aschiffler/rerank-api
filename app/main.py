@@ -63,4 +63,9 @@ async def health_check():
     """
     Health check endpoint to verify the API is running.
     """
-    return {"status": "ok", "model_loaded": reranker_instance is not None}
+    try:
+        reranker = get_reranker_model()
+        model_loaded = reranker is not None
+    except Exception:
+        model_loaded = False
+    return {"status": "ok", "model_loaded": model_loaded}
