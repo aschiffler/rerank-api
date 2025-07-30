@@ -8,6 +8,11 @@ class RerankerModel:
         # You can specify use_fp16=True for faster inference if you have a GPU
         # If running on CPU, keep use_fp16=False or omit it
         enable_gpu = os.getenv("ENABLE_GPU", "true").lower() in ("true", "1", "yes")
+
+        # If GPU usage is explicitly disabled, hide the GPUs from PyTorch.
+        if not enable_gpu:
+            os.environ["CUDA_VISIBLE_DEVICES"] = ""
+
         use_gpu = enable_gpu and torch.cuda.is_available()
 
         self.reranker = FlagReranker('BAAI/bge-reranker-v2-m3', use_fp16=use_gpu)
