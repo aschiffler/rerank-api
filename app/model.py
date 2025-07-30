@@ -1,16 +1,21 @@
 import torch
 from FlagEmbedding import FlagReranker
+import os
 
 class RerankerModel:
     def __init__(self):
         # Load the reranker model
         # You can specify use_fp16=True for faster inference if you have a GPU
         # If running on CPU, keep use_fp16=False or omit it
-        self.reranker = FlagReranker('BAAI/bge-reranker-v2-m3', use_fp16=True)
+        enable_gpu = os.getenv("ENABLE_GPU", "true").lower() in ("true", "1", "yes")
+        use_gpu = enable_gpu and torch.cuda.is_available()
+
+        self.reranker = FlagReranker('BAAI/bge-reranker-v2-m3', use_fp16=use_gpu)
         # Ensure the model is moved to GPU if available
-        if torch.cuda.is_available():
+        if use_gpu:
             self.reranker.model.cuda()
-        self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
+
+        self.device = 'cuda' if use_gpu else 'cpu'
         print(f"Reranker model loaded on {self.device} successfully!")
 
     def rerank(self, query: str, documents: list[str]) -> list[float]:
